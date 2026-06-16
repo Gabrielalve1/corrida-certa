@@ -1,6 +1,9 @@
 // Reconhecimento de voz (Web Speech API) + fala (Speech Synthesis) em pt-BR
 
-// ---- Tipos mínimos (a Web Speech API não tem tipos oficiais) ----
+// parseNumber fica em voice-parse.ts; re-exportado aqui pra compatibilidade
+export { parseNumber } from "./voice-parse";
+
+// ---- Tipos minimos (a Web Speech API nao tem tipos oficiais) ----
 interface SpeechRecognitionResultLike {
   0: { transcript: string };
   isFinal: boolean;
@@ -75,16 +78,36 @@ export function listenOnce(opts: {
   return { stop: () => { try { rec.stop(); } catch {} } };
 }
 
-// Extrai o primeiro número falado. Trata "vinte e dois", "18,50", "dezoito reais e cinquenta"
-export function parseNumber(text: string): number | null {
-  const t = text.toLowerCase().trim();
+// ---- Fala (TTS) ----
+let voicesCache: SpeechSynthesisVoice[] = [];
+function ptVoice(): SpeechSynthesisVoice | undefined {
+  if (!voicesCache.length) voicesCache = window.speechSynthesis?.getVoices() || [];
+  return (
+    voicesCache.find((v) => /pt[-_]BR/i.test(v.lang)) ||
+    voicesCache.find((v) => /^pt/i.test(v.lang))
+  );
+}
 
-  // 1) número direto com dígitos: "18", "18,5", "18.5", "7 km"
-  const digitMatch = t.match(/(\d+)([.,](\d+))?/);
-  if (digitMatch) {
-    const intp = digitMatch[1];
-    const dec = digitMatch[3];
-    const v = parseFloat(dec ? `${intp}.${dec}` : intp);
-    if (!isNaN(v)) return v;
-  }
+export function speak(text: string, onDone?: () => void) {
+  if (!("speechSynthesis" in window)) { onDone?.(); return; }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "pt-BR";
+  u.rate = 1.02;
+  u.pitch = 1;
+  const v = ptVoice();
+  if (v) u.voice = v;
+  if (onDone) u.onend = () => onDone();
+  window.speechSynthesis.speak(u);
+}
 
+export function stopSpeaking() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+}
+
+// pre-carrega vozes (Safari carrega async)
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    voicesCache = window.speechSynthesis.getVoices();
+  };
+}

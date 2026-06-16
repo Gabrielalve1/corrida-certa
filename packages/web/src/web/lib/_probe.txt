@@ -102,3 +102,13 @@ const UNITS: Record<string, number> = {
 const TENS: Record<string, number> = {
   vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60,
   setenta: 70, oitenta: 80, noventa: 90,
+};
+const HUNDREDS: Record<string, number> = {
+  cem: 100, cento: 100, duzentos: 200, trezentos: 300, quatrocentos: 400,
+  quinhentos: 500,
+};
+
+// Converte texto por extenso pra número (ex: "vinte e dois" -> 22, "trinta reais e cinquenta" -> 30.5)
+function wordsToNumber(text: string): number | null {
+  // separa parte inteira (reais) da decimal (centavos) se houver
+  const parts = text.split(/\b(?:

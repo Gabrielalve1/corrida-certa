@@ -111,4 +111,16 @@ const HUNDREDS: Record<string, number> = {
 // Converte texto por extenso pra número (ex: "vinte e dois" -> 22, "trinta reais e cinquenta" -> 30.5)
 function wordsToNumber(text: string): number | null {
   // separa parte inteira (reais) da decimal (centavos) se houver
-  const parts = text.split(/\b(?:
+  const parts = text.split(/\b(?:e\s+)?(?:centavos?|cents?)\b/);
+  // tenta achar "X reais e Y" => X.Y
+  const reaisSplit = text.match(/(.+?)\s*reais?\s*e\s*(.+)/);
+  if (reaisSplit) {
+    const intPart = chunkToNumber(reaisSplit[1]);
+    const decPart = chunkToNumber(reaisSplit[2]);
+    if (intPart != null) {
+      const cents = decPart != null ? decPart : 0;
+      return intPart + cents / 100;
+    }
+  }
+
+  const whole = chunkTo

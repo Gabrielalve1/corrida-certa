@@ -1,0 +1,104 @@
+// Reconhecimento de voz (Web Speech API) + fala (Speech Synthesis) em pt-BR
+
+// ---- Tipos mínimos (a Web Speech API não tem tipos oficiais) ----
+interface SpeechRecognitionResultLike {
+  0: { transcript: string };
+  isFinal: boolean;
+}
+interface SpeechRecognitionEventLike {
+  results: { [i: number]: SpeechRecognitionResultLike; length: number };
+}
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  onstart: (() => void) | null;
+}
+
+function getRecognition(): SpeechRecognitionLike | null {
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+  if (!Ctor) return null;
+  return new Ctor();
+}
+
+export function voiceSupported(): boolean {
+  const w = window as unknown as Record<string, unknown>;
+  return !!(w.SpeechRecognition || w.webkitSpeechRecognition);
+}
+
+// Ouve uma vez e retorna o texto reconhecido
+export function listenOnce(opts: {
+  onText: (text: string, final: boolean) => void;
+  onError: (err: string) => void;
+  onEnd: () => void;
+}): { stop: () => void } {
+  const rec = getRecognition();
+  if (!rec) {
+    opts.onError("not-supported");
+    opts.onEnd();
+    return { stop: () => {} };
+  }
+  rec.lang = "pt-BR";
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+
+  rec.onresult = (e) => {
+    let txt = "";
+    let isFinal = false;
+    for (let i = 0; i < e.results.length; i++) {
+      txt += e.results[i][0].transcript;
+      if (e.results[i].isFinal) isFinal = true;
+    }
+    opts.onText(txt.trim(), isFinal);
+  };
+  rec.onerror = (e) => opts.onError(e.error);
+  rec.onend = () => opts.onEnd();
+
+  try {
+    rec.start();
+  } catch {
+    opts.onError("start-failed");
+    opts.onEnd();
+  }
+  return { stop: () => { try { rec.stop(); } catch {} } };
+}
+
+// Extrai o primeiro número falado. Trata "vinte e dois", "18,50", "dezoito reais e cinquenta"
+export function parseNumber(text: string): number | null {
+  const t = text.toLowerCase().trim();
+
+  // 1) número direto com dígitos: "18", "18,5", "18.5", "7 km"
+  const digitMatch = t.match(/(\d+)([.,](\d+))?/);
+  if (digitMatch) {
+    const intp = digitMatch[1];
+    const dec = digitMatch[3];
+    const v = parseFloat(dec ? `${intp}.${dec}` : intp);
+    if (!isNaN(v)) return v;
+  }
+
+  // 2) números por extenso (cobre 0-99, suficiente pra corrida)
+  const v = wordsToNumber(t);
+  return v;
+}
+
+const UNITS: Record<string, number> = {
+  zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, "três": 3, quatro: 4,
+  cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12,
+  treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16,
+  dezessete: 17, dezoito: 18, dezenove: 19,
+};
+const TENS: Record<string, number> = {
+  vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60,
+  setenta: 70, oitenta: 80, noventa: 90,

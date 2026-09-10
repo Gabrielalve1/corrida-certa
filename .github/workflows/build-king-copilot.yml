@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "KingCopilot_v0.1_Brasil.zip"
+      - "kingcopilot-android/**"
       - ".github/workflows/build-king-copilot.yml"
 
 jobs:
@@ -13,28 +13,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.10.2"
+          gradle-version: "8.9"
 
-      - name: Extract project
-        run: unzip -o KingCopilot_v0.1_Brasil.zip
-
-      - name: Build debug APK
-        working-directory: KingCopilot/android
+      - name: Build APK
+        working-directory: kingcopilot-android
         run: gradle assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: cp kingcopilot-android/app/build/outputs/apk/debug/app-debug.apk KingCopilot-v0.2-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: KingCopilot-debug-apk
-          path: KingCopilot/android/app/build/outputs/apk/debug/app-debug.apk
-
-# trigger build
+          name: KingCopilot-APK
+          path: KingCopilot-v0.2-debug.apk

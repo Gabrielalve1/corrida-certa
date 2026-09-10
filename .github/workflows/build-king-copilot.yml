@@ -36,3 +36,5 @@ jobs:
         with:
           name: KingCopilot-debug-apk
           path: KingCopilot/android/app/build/outputs/apk/debug/app-debug.apk
+
+# trigger build
